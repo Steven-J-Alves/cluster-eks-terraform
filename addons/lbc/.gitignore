@@ -1,0 +1,13 @@
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+*.tfplan
+local-exec-output-files/
+
+# Credentials
+*.pem
+*.key
+secrets.tfvars
+*.auto.tfvars.json

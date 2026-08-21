@@ -1,0 +1,5 @@
+include:
+  - local: cluster/.gitlab-ci.yml
+  - local: addons/lbc/.gitlab-ci.yml
+  - local: addons/externaldns/.gitlab-ci.yml
+  - local: apps/.gitlab-ci.yml
