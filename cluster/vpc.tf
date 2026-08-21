@@ -5,8 +5,7 @@ data "aws_availability_zones" "available" {
 # Create VPC Terraform Module
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  #version = "4.0.1"
-  version = "5.4.0"    
+  version = "6.7.0"
   
   # VPC Basic Details
   name = local.eks_cluster_name
