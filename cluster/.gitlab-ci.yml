@@ -18,7 +18,7 @@ stages:
 
 .cluster_validate:
   stage: validate
-  tags: [vps, shell]
+  tags: [docker]
   script:
     - docker run --rm --user "$(id -u):$(id -g)"
         -v "$REPO_HOST_DIR:/workspace" -w $CLUSTER_TF_WORKDIR
@@ -31,7 +31,7 @@ stages:
 
 .cluster_plan:
   stage: plan
-  tags: [vps, shell]
+  tags: [docker]
   script:
     - docker run --rm --user "$(id -u):$(id -g)"
         -v "$REPO_HOST_DIR:/workspace" -w $CLUSTER_TF_WORKDIR
@@ -45,7 +45,7 @@ stages:
 
 .cluster_apply:
   stage: apply
-  tags: [vps, shell]
+  tags: [docker]
   script:
     - docker run --rm --user "$(id -u):$(id -g)"
         -v "$REPO_HOST_DIR:/workspace" -w $CLUSTER_TF_WORKDIR
@@ -61,7 +61,7 @@ stages:
 
 .cluster_destroy:
   stage: destroy
-  tags: [vps, shell]
+  tags: [docker]
   script:
     - docker run --rm --user "$(id -u):$(id -g)"
         -v "$REPO_HOST_DIR:/workspace" -w $CLUSTER_TF_WORKDIR

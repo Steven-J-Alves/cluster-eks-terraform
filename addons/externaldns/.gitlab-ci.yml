@@ -17,7 +17,7 @@ stages:
 
 .extdns_validate:
   stage: validate
-  tags: [vps, shell]
+  tags: [docker]
   script:
     - if ! aws s3 ls "s3://kk-eks-lab-tfstate/$CLUSTER_STATE_KEY" --region us-east-1 > /dev/null 2>&1; then
         echo "ERROR - Cluster state not found at $CLUSTER_STATE_KEY. Run cluster:apply first."; exit 1;
@@ -33,7 +33,7 @@ stages:
 
 .extdns_plan:
   stage: plan
-  tags: [vps, shell]
+  tags: [docker]
   script:
     - docker run --rm --user "$(id -u):$(id -g)"
         -v "$REPO_HOST_DIR:/workspace" -w $EXTDNS_TF_WORKDIR
@@ -48,7 +48,7 @@ stages:
 
 .extdns_apply:
   stage: apply
-  tags: [vps, shell]
+  tags: [docker]
   script:
     - docker run --rm --user "$(id -u):$(id -g)"
         -v "$REPO_HOST_DIR:/workspace" -w $EXTDNS_TF_WORKDIR
@@ -65,7 +65,7 @@ stages:
 
 .extdns_destroy:
   stage: destroy
-  tags: [vps, shell]
+  tags: [docker]
   script:
     - docker run --rm --user "$(id -u):$(id -g)"
         -v "$REPO_HOST_DIR:/workspace" -w $EXTDNS_TF_WORKDIR
