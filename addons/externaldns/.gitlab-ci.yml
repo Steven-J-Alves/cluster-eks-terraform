@@ -1,6 +1,6 @@
 # Deploy order: cluster → lbc → externaldns (apply lbc first)
 # Branches: main → prod | staging → staging
-# Runner: shell executor (vps, shell tags) — uses docker run for terraform
+# Runner: vps-native-runner (tags: [docker]) — shell executor with Docker socket, uses docker run for terraform
 
 variables:
   TF_IMAGE: "hashicorp/terraform:1.9"
