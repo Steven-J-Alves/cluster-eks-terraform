@@ -1,10 +1,12 @@
 # Deploy order: cluster → addons/lbc → addons/externaldns
 # Branches: main → prod | staging → staging
 # State keys: <env>/cluster/terraform.tfstate (injected via -backend-config at init)
+# Runner: shell executor (vps, shell tags) — uses docker run for terraform
 
 variables:
   TF_IMAGE: "hashicorp/terraform:1.9"
-  CLUSTER_TF_DIR: "$CI_PROJECT_DIR/cluster/eks_cluster_main"
+  REPO_HOST_DIR: "$CI_PROJECT_DIR"
+  CLUSTER_TF_WORKDIR: "/workspace/cluster/eks_cluster_main"
 
 stages:
   - validate
@@ -16,41 +18,60 @@ stages:
 
 .cluster_validate:
   stage: validate
-  image: hashicorp/terraform:1.9
+  tags: [vps, shell]
   script:
-    - cd "$CLUSTER_TF_DIR"
-    - terraform init -input=false -reconfigure
+    - docker run --rm --user "$(id -u):$(id -g)"
+        -v "$REPO_HOST_DIR:/workspace" -w $CLUSTER_TF_WORKDIR
+        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
+        $TF_IMAGE init -input=false -reconfigure
         -backend-config="key=$TF_STATE_KEY"
-    - terraform validate
+    - docker run --rm --user "$(id -u):$(id -g)"
+        -v "$REPO_HOST_DIR:/workspace" -w $CLUSTER_TF_WORKDIR
+        $TF_IMAGE validate
 
 .cluster_plan:
   stage: plan
-  image: hashicorp/terraform:1.9
+  tags: [vps, shell]
   script:
-    - cd "$CLUSTER_TF_DIR"
-    - terraform init -input=false -reconfigure
+    - docker run --rm --user "$(id -u):$(id -g)"
+        -v "$REPO_HOST_DIR:/workspace" -w $CLUSTER_TF_WORKDIR
+        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
+        $TF_IMAGE init -input=false -reconfigure
         -backend-config="key=$TF_STATE_KEY"
-    - terraform plan -input=false -var-file="$TF_VAR_FILE" -out=tfplan
+    - docker run --rm --user "$(id -u):$(id -g)"
+        -v "$REPO_HOST_DIR:/workspace" -w $CLUSTER_TF_WORKDIR
+        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
+        $TF_IMAGE plan -input=false -var-file="$TF_VAR_FILE" -out=tfplan
 
 .cluster_apply:
   stage: apply
-  image: hashicorp/terraform:1.9
+  tags: [vps, shell]
   script:
-    - cd "$CLUSTER_TF_DIR"
-    - terraform init -input=false -reconfigure
+    - docker run --rm --user "$(id -u):$(id -g)"
+        -v "$REPO_HOST_DIR:/workspace" -w $CLUSTER_TF_WORKDIR
+        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
+        $TF_IMAGE init -input=false -reconfigure
         -backend-config="key=$TF_STATE_KEY"
-    - terraform apply -input=false -var-file="$TF_VAR_FILE" -auto-approve
+    - docker run --rm --user "$(id -u):$(id -g)"
+        -v "$REPO_HOST_DIR:/workspace" -w $CLUSTER_TF_WORKDIR
+        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
+        $TF_IMAGE apply -input=false -var-file="$TF_VAR_FILE" -auto-approve
   when: manual
   allow_failure: false
 
 .cluster_destroy:
   stage: destroy
-  image: hashicorp/terraform:1.9
+  tags: [vps, shell]
   script:
-    - cd "$CLUSTER_TF_DIR"
-    - terraform init -input=false -reconfigure
+    - docker run --rm --user "$(id -u):$(id -g)"
+        -v "$REPO_HOST_DIR:/workspace" -w $CLUSTER_TF_WORKDIR
+        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
+        $TF_IMAGE init -input=false -reconfigure
         -backend-config="key=$TF_STATE_KEY"
-    - terraform destroy -input=false -var-file="$TF_VAR_FILE" -auto-approve
+    - docker run --rm --user "$(id -u):$(id -g)"
+        -v "$REPO_HOST_DIR:/workspace" -w $CLUSTER_TF_WORKDIR
+        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
+        $TF_IMAGE destroy -input=false -var-file="$TF_VAR_FILE" -auto-approve
   when: manual
 
 # ── PROD — main branch ─────────────────────────────────────────────────────────
