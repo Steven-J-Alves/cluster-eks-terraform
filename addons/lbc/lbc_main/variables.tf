@@ -15,3 +15,9 @@ variable "cluster_state_key" {
   type        = string
   default     = "cluster/terraform.tfstate"
 }
+
+variable "environment" {
+  description = "Environment name used for resource naming"
+  type        = string
+  default     = "dev"
+}
