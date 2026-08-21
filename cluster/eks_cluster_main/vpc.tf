@@ -1,5 +1,5 @@
 module "vpc" {
-  source = "../../modules/vpc"
+  source = "../../../modules/vpc"
 
   name         = local.eks_cluster_name
   cidr         = var.vpc_cidr_block

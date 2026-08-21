@@ -1,5 +1,5 @@
 module "irsa_externaldns" {
-  source = "../../modules/irsa"
+  source = "../../../modules/irsa"
 
   name              = "${local.name}-externaldns"
   oidc_provider_arn = data.terraform_remote_state.eks.outputs.aws_iam_openid_connect_provider_arn
