@@ -1,0 +1,185 @@
+# Deploy order: cluster → lbc → externaldns (apply lbc first)
+# Branches: main → prod | staging → staging
+# State keys: <env>/externaldns/terraform.tfstate
+# cluster_state_key: <env>/cluster/terraform.tfstate (passed as TF var)
+
+variables:
+  TF_IMAGE: "hashicorp/terraform:1.9"
+  REPO_HOST_DIR: "$CI_PROJECT_DIR"
+  EXTDNS_TF_WORKDIR: "/workspace/addons/externaldns/externaldns_main"
+
+stages:
+  - validate
+  - plan
+  - apply
+  - destroy
+
+# ── Job templates (hidden) ─────────────────────────────────────────────────────
+
+.extdns_validate:
+  stage: validate
+  script:
+    - if ! aws s3 ls "s3://kk-eks-lab-tfstate/$CLUSTER_STATE_KEY" --region us-east-1 > /dev/null 2>&1; then
+        echo "ERROR - Cluster state not found at $CLUSTER_STATE_KEY. Run cluster:apply first."; exit 1;
+      fi
+    - docker run --rm --user "$(id -u):$(id -g)"
+        -v "$REPO_HOST_DIR:/workspace" -w $EXTDNS_TF_WORKDIR
+        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
+        $TF_IMAGE init -input=false -reconfigure
+        -backend-config="key=$TF_STATE_KEY"
+    - docker run --rm --user "$(id -u):$(id -g)"
+        -v "$REPO_HOST_DIR:/workspace" -w $EXTDNS_TF_WORKDIR
+        $TF_IMAGE validate
+
+.extdns_plan:
+  stage: plan
+  script:
+    - docker run --rm --user "$(id -u):$(id -g)"
+        -v "$REPO_HOST_DIR:/workspace" -w $EXTDNS_TF_WORKDIR
+        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
+        $TF_IMAGE init -input=false -reconfigure
+        -backend-config="key=$TF_STATE_KEY"
+    - docker run --rm --user "$(id -u):$(id -g)"
+        -v "$REPO_HOST_DIR:/workspace" -w $EXTDNS_TF_WORKDIR
+        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
+        $TF_IMAGE plan -input=false
+        -var="cluster_state_key=$CLUSTER_STATE_KEY" -out=tfplan
+
+.extdns_apply:
+  stage: apply
+  script:
+    - docker run --rm --user "$(id -u):$(id -g)"
+        -v "$REPO_HOST_DIR:/workspace" -w $EXTDNS_TF_WORKDIR
+        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
+        $TF_IMAGE init -input=false -reconfigure
+        -backend-config="key=$TF_STATE_KEY"
+    - docker run --rm --user "$(id -u):$(id -g)"
+        -v "$REPO_HOST_DIR:/workspace" -w $EXTDNS_TF_WORKDIR
+        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
+        $TF_IMAGE apply -input=false
+        -var="cluster_state_key=$CLUSTER_STATE_KEY" -auto-approve
+  when: manual
+  allow_failure: false
+
+.extdns_destroy:
+  stage: destroy
+  script:
+    - docker run --rm --user "$(id -u):$(id -g)"
+        -v "$REPO_HOST_DIR:/workspace" -w $EXTDNS_TF_WORKDIR
+        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
+        $TF_IMAGE init -input=false -reconfigure
+        -backend-config="key=$TF_STATE_KEY"
+    - docker run --rm --user "$(id -u):$(id -g)"
+        -v "$REPO_HOST_DIR:/workspace" -w $EXTDNS_TF_WORKDIR
+        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
+        $TF_IMAGE destroy -input=false
+        -var="cluster_state_key=$CLUSTER_STATE_KEY" -auto-approve
+  when: manual
+
+# ── PROD — main branch ─────────────────────────────────────────────────────────
+
+externaldns:validate:
+  extends: .extdns_validate
+  variables:
+    TF_STATE_KEY: "prod/externaldns/terraform.tfstate"
+    CLUSTER_STATE_KEY: "prod/cluster/terraform.tfstate"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"'
+      changes:
+        - addons/externaldns/**/*
+        - modules/irsa/**/*
+
+externaldns:plan:
+  extends: .extdns_plan
+  variables:
+    TF_STATE_KEY: "prod/externaldns/terraform.tfstate"
+    CLUSTER_STATE_KEY: "prod/cluster/terraform.tfstate"
+  artifacts:
+    paths:
+      - addons/externaldns/externaldns_main/tfplan
+    expire_in: 1 day
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"'
+      changes:
+        - addons/externaldns/**/*
+        - modules/irsa/**/*
+  needs:
+    - externaldns:validate
+
+externaldns:apply:
+  extends: .extdns_apply
+  variables:
+    TF_STATE_KEY: "prod/externaldns/terraform.tfstate"
+    CLUSTER_STATE_KEY: "prod/cluster/terraform.tfstate"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"'
+      changes:
+        - addons/externaldns/**/*
+        - modules/irsa/**/*
+  needs:
+    - externaldns:plan
+
+externaldns:destroy:
+  extends: .extdns_destroy
+  variables:
+    TF_STATE_KEY: "prod/externaldns/terraform.tfstate"
+    CLUSTER_STATE_KEY: "prod/cluster/terraform.tfstate"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"'
+      changes:
+        - addons/externaldns/**/*
+        - modules/irsa/**/*
+
+# ── STAGING — staging branch ───────────────────────────────────────────────────
+
+externaldns:staging:validate:
+  extends: .extdns_validate
+  variables:
+    TF_STATE_KEY: "staging/externaldns/terraform.tfstate"
+    CLUSTER_STATE_KEY: "staging/cluster/terraform.tfstate"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "staging" && $CI_PIPELINE_SOURCE == "push"'
+      changes:
+        - addons/externaldns/**/*
+        - modules/irsa/**/*
+
+externaldns:staging:plan:
+  extends: .extdns_plan
+  variables:
+    TF_STATE_KEY: "staging/externaldns/terraform.tfstate"
+    CLUSTER_STATE_KEY: "staging/cluster/terraform.tfstate"
+  artifacts:
+    paths:
+      - addons/externaldns/externaldns_main/tfplan
+    expire_in: 1 day
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "staging" && $CI_PIPELINE_SOURCE == "push"'
+      changes:
+        - addons/externaldns/**/*
+        - modules/irsa/**/*
+  needs:
+    - externaldns:staging:validate
+
+externaldns:staging:apply:
+  extends: .extdns_apply
+  variables:
+    TF_STATE_KEY: "staging/externaldns/terraform.tfstate"
+    CLUSTER_STATE_KEY: "staging/cluster/terraform.tfstate"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "staging" && $CI_PIPELINE_SOURCE == "push"'
+      changes:
+        - addons/externaldns/**/*
+        - modules/irsa/**/*
+  needs:
+    - externaldns:staging:plan
+
+externaldns:staging:destroy:
+  extends: .extdns_destroy
+  variables:
+    TF_STATE_KEY: "staging/externaldns/terraform.tfstate"
+    CLUSTER_STATE_KEY: "staging/cluster/terraform.tfstate"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "staging" && $CI_PIPELINE_SOURCE == "push"'
+      changes:
+        - addons/externaldns/**/*
+        - modules/irsa/**/*

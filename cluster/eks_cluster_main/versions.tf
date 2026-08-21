@@ -10,9 +10,9 @@ terraform {
       version = "~> 3.0"
     }
   }
+  # key is injected at init via -backend-config="key=<env>/cluster/terraform.tfstate"
   backend "s3" {
     bucket         = "kk-eks-lab-tfstate"
-    key            = "cluster/terraform.tfstate"
     region         = "us-east-1"
     dynamodb_table = "kk-eks-lab-tfstate-lock"
   }

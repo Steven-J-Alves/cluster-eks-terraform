@@ -1,19 +1,17 @@
-# Input Variables - Placeholder file
-# AWS Region
 variable "aws_region" {
-  description = "Region in which AWS Resources to be created"
-  type = string
-  default = "us-east-1"  
+  description = "AWS region"
+  type        = string
+  default     = "us-east-1"
 }
-# Environment Variable
-variable "environment" {
-  description = "Environment Variable used as a prefix"
-  type = string
-  default = "dev"
-}
-# Business Division
+
 variable "team" {
-  description = "Business Division in the large organization this Infrastructure belongs"
-  type = string
-  default = "SAP"
+  description = "Team prefix used for resource naming"
+  type        = string
+  default     = "kk"
+}
+
+variable "cluster_state_key" {
+  description = "S3 key for the cluster Terraform state. Injected by CI per environment."
+  type        = string
+  default     = "cluster/terraform.tfstate"
 }

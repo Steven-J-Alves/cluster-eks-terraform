@@ -1,0 +1,178 @@
+# Deploy order: cluster → addons/lbc → addons/externaldns
+# Branches: main → prod | staging → staging
+# State keys: <env>/cluster/terraform.tfstate (injected via -backend-config at init)
+
+variables:
+  TF_IMAGE: "hashicorp/terraform:1.9"
+  REPO_HOST_DIR: "$CI_PROJECT_DIR"
+  CLUSTER_TF_WORKDIR: "/workspace/cluster/eks_cluster_main"
+
+stages:
+  - validate
+  - plan
+  - apply
+  - destroy
+
+# ── Job templates (hidden) ─────────────────────────────────────────────────────
+
+.cluster_validate:
+  stage: validate
+  script:
+    - docker run --rm --user "$(id -u):$(id -g)"
+        -v "$REPO_HOST_DIR:/workspace" -w $CLUSTER_TF_WORKDIR
+        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
+        $TF_IMAGE init -input=false -reconfigure
+        -backend-config="key=$TF_STATE_KEY"
+    - docker run --rm --user "$(id -u):$(id -g)"
+        -v "$REPO_HOST_DIR:/workspace" -w $CLUSTER_TF_WORKDIR
+        $TF_IMAGE validate
+
+.cluster_plan:
+  stage: plan
+  script:
+    - docker run --rm --user "$(id -u):$(id -g)"
+        -v "$REPO_HOST_DIR:/workspace" -w $CLUSTER_TF_WORKDIR
+        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
+        $TF_IMAGE init -input=false -reconfigure
+        -backend-config="key=$TF_STATE_KEY"
+    - docker run --rm --user "$(id -u):$(id -g)"
+        -v "$REPO_HOST_DIR:/workspace" -w $CLUSTER_TF_WORKDIR
+        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
+        $TF_IMAGE plan -input=false -var-file="$TF_VAR_FILE" -out=tfplan
+
+.cluster_apply:
+  stage: apply
+  script:
+    - docker run --rm --user "$(id -u):$(id -g)"
+        -v "$REPO_HOST_DIR:/workspace" -w $CLUSTER_TF_WORKDIR
+        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
+        $TF_IMAGE init -input=false -reconfigure
+        -backend-config="key=$TF_STATE_KEY"
+    - docker run --rm --user "$(id -u):$(id -g)"
+        -v "$REPO_HOST_DIR:/workspace" -w $CLUSTER_TF_WORKDIR
+        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
+        $TF_IMAGE apply -input=false -var-file="$TF_VAR_FILE" -auto-approve
+  when: manual
+  allow_failure: false
+
+.cluster_destroy:
+  stage: destroy
+  script:
+    - docker run --rm --user "$(id -u):$(id -g)"
+        -v "$REPO_HOST_DIR:/workspace" -w $CLUSTER_TF_WORKDIR
+        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
+        $TF_IMAGE init -input=false -reconfigure
+        -backend-config="key=$TF_STATE_KEY"
+    - docker run --rm --user "$(id -u):$(id -g)"
+        -v "$REPO_HOST_DIR:/workspace" -w $CLUSTER_TF_WORKDIR
+        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
+        $TF_IMAGE destroy -input=false -var-file="$TF_VAR_FILE" -auto-approve
+  when: manual
+
+# ── PROD — main branch ─────────────────────────────────────────────────────────
+
+cluster:validate:
+  extends: .cluster_validate
+  variables:
+    TF_STATE_KEY: "prod/cluster/terraform.tfstate"
+    TF_VAR_FILE: "../environments/prod/terraform.tfvars"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"'
+      changes:
+        - cluster/**/*
+        - modules/**/*
+
+cluster:plan:
+  extends: .cluster_plan
+  variables:
+    TF_STATE_KEY: "prod/cluster/terraform.tfstate"
+    TF_VAR_FILE: "../environments/prod/terraform.tfvars"
+  artifacts:
+    paths:
+      - cluster/eks_cluster_main/tfplan
+    expire_in: 1 day
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"'
+      changes:
+        - cluster/**/*
+        - modules/**/*
+  needs:
+    - cluster:validate
+
+cluster:apply:
+  extends: .cluster_apply
+  variables:
+    TF_STATE_KEY: "prod/cluster/terraform.tfstate"
+    TF_VAR_FILE: "../environments/prod/terraform.tfvars"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"'
+      changes:
+        - cluster/**/*
+        - modules/**/*
+  needs:
+    - cluster:plan
+
+cluster:destroy:
+  extends: .cluster_destroy
+  variables:
+    TF_STATE_KEY: "prod/cluster/terraform.tfstate"
+    TF_VAR_FILE: "../environments/prod/terraform.tfvars"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"'
+      changes:
+        - cluster/**/*
+        - modules/**/*
+
+# ── STAGING — staging branch ───────────────────────────────────────────────────
+
+cluster:staging:validate:
+  extends: .cluster_validate
+  variables:
+    TF_STATE_KEY: "staging/cluster/terraform.tfstate"
+    TF_VAR_FILE: "../environments/staging/terraform.tfvars"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "staging" && $CI_PIPELINE_SOURCE == "push"'
+      changes:
+        - cluster/**/*
+        - modules/**/*
+
+cluster:staging:plan:
+  extends: .cluster_plan
+  variables:
+    TF_STATE_KEY: "staging/cluster/terraform.tfstate"
+    TF_VAR_FILE: "../environments/staging/terraform.tfvars"
+  artifacts:
+    paths:
+      - cluster/eks_cluster_main/tfplan
+    expire_in: 1 day
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "staging" && $CI_PIPELINE_SOURCE == "push"'
+      changes:
+        - cluster/**/*
+        - modules/**/*
+  needs:
+    - cluster:staging:validate
+
+cluster:staging:apply:
+  extends: .cluster_apply
+  variables:
+    TF_STATE_KEY: "staging/cluster/terraform.tfstate"
+    TF_VAR_FILE: "../environments/staging/terraform.tfvars"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "staging" && $CI_PIPELINE_SOURCE == "push"'
+      changes:
+        - cluster/**/*
+        - modules/**/*
+  needs:
+    - cluster:staging:plan
+
+cluster:staging:destroy:
+  extends: .cluster_destroy
+  variables:
+    TF_STATE_KEY: "staging/cluster/terraform.tfstate"
+    TF_VAR_FILE: "../environments/staging/terraform.tfvars"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "staging" && $CI_PIPELINE_SOURCE == "push"'
+      changes:
+        - cluster/**/*
+        - modules/**/*
