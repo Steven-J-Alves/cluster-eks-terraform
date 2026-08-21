@@ -1,13 +1,9 @@
 data "aws_caller_identity" "current" {}
 
-output "account_id" {
-  value = data.aws_caller_identity.current.account_id
-}
-
 locals {
   configmap_roles = [
     {
-      rolearn  = aws_iam_role.eks_nodegroup_role.arn
+      rolearn  = module.eks.nodegroup_iam_role_arn
       username = "system:node:{{EC2PrivateDNSName}}"
       groups   = ["system:bootstrappers", "system:nodes"]
     },
@@ -15,7 +11,7 @@ locals {
 }
 
 resource "kubernetes_config_map_v1" "aws_auth" {
-  depends_on = [aws_eks_cluster.eks_cluster]
+  depends_on = [module.eks]
 
   metadata {
     name      = "aws-auth"

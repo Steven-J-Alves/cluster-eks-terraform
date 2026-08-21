@@ -1,11 +1,9 @@
-# Datasource: 
 data "aws_eks_cluster_auth" "cluster" {
-  name = aws_eks_cluster.eks_cluster.id
+  name = module.eks.cluster_id
 }
 
-# Terraform Kubernetes Provider
 provider "kubernetes" {
-  host = aws_eks_cluster.eks_cluster.endpoint
-  cluster_ca_certificate = base64decode(aws_eks_cluster.eks_cluster.certificate_authority[0].data)
-  token = data.aws_eks_cluster_auth.cluster.token
+  host                   = module.eks.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+  token                  = data.aws_eks_cluster_auth.cluster.token
 }

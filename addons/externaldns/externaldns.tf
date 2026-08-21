@@ -1,18 +1,15 @@
-# Resource: Helm Release 
 resource "helm_release" "external_dns" {
-  depends_on = [aws_iam_role.externaldns_iam_role]            
+  depends_on = [module.irsa_externaldns]
   name       = "external-dns"
 
   repository = "https://kubernetes-sigs.github.io/external-dns/"
   chart      = "external-dns"
-
-  namespace = "default"     
+  namespace  = "default"
 
   set {
-    name = "image.repository"
-    #value = "k8s.gcr.io/external-dns/external-dns" 
+    name  = "image.repository"
     value = "registry.k8s.io/external-dns/external-dns"
-  }       
+  }
 
   set {
     name  = "serviceAccount.create"
@@ -26,13 +23,13 @@ resource "helm_release" "external_dns" {
 
   set {
     name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
-    value = "${aws_iam_role.externaldns_iam_role.arn}"
+    value = module.irsa_externaldns.iam_role_arn
   }
 
   set {
-    name  = "provider" # Default is aws (https://github.com/kubernetes-sigs/external-dns/tree/master/charts/external-dns)
+    name  = "provider"
     value = "aws"
-  }    
+  }
 
   set {
     name  = "policy"
@@ -44,4 +41,3 @@ resource "helm_release" "external_dns" {
     value = "kriolu-kloud.cv"
   }
 }
-
