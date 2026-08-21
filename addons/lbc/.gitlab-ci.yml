@@ -4,9 +4,7 @@
 # cluster_state_key: <env>/cluster/terraform.tfstate (passed as TF var)
 
 variables:
-  TF_IMAGE: "hashicorp/terraform:1.9"
-  REPO_HOST_DIR: "$CI_PROJECT_DIR"
-  LBC_TF_WORKDIR: "/workspace/addons/lbc/lbc_main"
+  LBC_TF_DIR: "$CI_PROJECT_DIR/addons/lbc/lbc_main"
 
 stages:
   - validate
@@ -18,61 +16,45 @@ stages:
 
 .lbc_validate:
   stage: validate
+  image: hashicorp/terraform:1.9
   script:
-    - if ! aws s3 ls "s3://kk-eks-lab-tfstate/$CLUSTER_STATE_KEY" --region us-east-1 > /dev/null 2>&1; then
-        echo "ERROR - Cluster state not found at $CLUSTER_STATE_KEY. Run cluster:apply first."; exit 1;
-      fi
-    - docker run --rm --user "$(id -u):$(id -g)"
-        -v "$REPO_HOST_DIR:/workspace" -w $LBC_TF_WORKDIR
-        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
-        $TF_IMAGE init -input=false -reconfigure
+    - aws s3 ls "s3://kk-eks-lab-tfstate/$CLUSTER_STATE_KEY" --region us-east-1 > /dev/null 2>&1
+        || { echo "ERROR - Cluster state not found at $CLUSTER_STATE_KEY. Run cluster:apply first."; exit 1; }
+    - cd "$LBC_TF_DIR"
+    - terraform init -input=false -reconfigure
         -backend-config="key=$TF_STATE_KEY"
-    - docker run --rm --user "$(id -u):$(id -g)"
-        -v "$REPO_HOST_DIR:/workspace" -w $LBC_TF_WORKDIR
-        $TF_IMAGE validate
+    - terraform validate
 
 .lbc_plan:
   stage: plan
+  image: hashicorp/terraform:1.9
   script:
-    - docker run --rm --user "$(id -u):$(id -g)"
-        -v "$REPO_HOST_DIR:/workspace" -w $LBC_TF_WORKDIR
-        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
-        $TF_IMAGE init -input=false -reconfigure
+    - cd "$LBC_TF_DIR"
+    - terraform init -input=false -reconfigure
         -backend-config="key=$TF_STATE_KEY"
-    - docker run --rm --user "$(id -u):$(id -g)"
-        -v "$REPO_HOST_DIR:/workspace" -w $LBC_TF_WORKDIR
-        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
-        $TF_IMAGE plan -input=false
+    - terraform plan -input=false
         -var="cluster_state_key=$CLUSTER_STATE_KEY" -out=tfplan
 
 .lbc_apply:
   stage: apply
+  image: hashicorp/terraform:1.9
   script:
-    - docker run --rm --user "$(id -u):$(id -g)"
-        -v "$REPO_HOST_DIR:/workspace" -w $LBC_TF_WORKDIR
-        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
-        $TF_IMAGE init -input=false -reconfigure
+    - cd "$LBC_TF_DIR"
+    - terraform init -input=false -reconfigure
         -backend-config="key=$TF_STATE_KEY"
-    - docker run --rm --user "$(id -u):$(id -g)"
-        -v "$REPO_HOST_DIR:/workspace" -w $LBC_TF_WORKDIR
-        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
-        $TF_IMAGE apply -input=false
+    - terraform apply -input=false
         -var="cluster_state_key=$CLUSTER_STATE_KEY" -auto-approve
   when: manual
   allow_failure: false
 
 .lbc_destroy:
   stage: destroy
+  image: hashicorp/terraform:1.9
   script:
-    - docker run --rm --user "$(id -u):$(id -g)"
-        -v "$REPO_HOST_DIR:/workspace" -w $LBC_TF_WORKDIR
-        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
-        $TF_IMAGE init -input=false -reconfigure
+    - cd "$LBC_TF_DIR"
+    - terraform init -input=false -reconfigure
         -backend-config="key=$TF_STATE_KEY"
-    - docker run --rm --user "$(id -u):$(id -g)"
-        -v "$REPO_HOST_DIR:/workspace" -w $LBC_TF_WORKDIR
-        -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION
-        $TF_IMAGE destroy -input=false
+    - terraform destroy -input=false
         -var="cluster_state_key=$CLUSTER_STATE_KEY" -auto-approve
   when: manual
 
