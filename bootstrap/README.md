@@ -62,20 +62,6 @@ apps → addons/externaldns → addons/lbc → cluster → bootstrap
 
 ---
 
-## Importing existing resources
-
-If the S3 bucket and DynamoDB table already exist (created manually before this stack was written), import them:
-
-```bash
-terraform import aws_s3_bucket.tfstate kk-eks-lab-tfstate
-terraform import aws_s3_bucket_versioning.tfstate kk-eks-lab-tfstate
-terraform import aws_s3_bucket_server_side_encryption_configuration.tfstate kk-eks-lab-tfstate
-terraform import aws_s3_bucket_public_access_block.tfstate kk-eks-lab-tfstate
-terraform import aws_dynamodb_table.tfstate_lock kk-eks-lab-tfstate-lock
-```
-
----
-
 ## Usage
 
 ```bash
