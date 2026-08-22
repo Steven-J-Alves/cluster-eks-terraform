@@ -49,6 +49,8 @@ Production-ready Amazon EKS infrastructure managed with Terraform. The project i
        eks-lab.your-domain.com ──► ALB DNS
 ```
 
+![EKS Infrastructure — cluster-eks-terraform](infrastructure-overview.png)
+
 ## Stacks
 
 | # | Path | What it provisions | README |
