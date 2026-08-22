@@ -28,5 +28,6 @@ Thumbs.db
 # Local exec output
 local-exec-output-files/
 
-# Apps (not versioned yet)
-apps/
+# Terraform local state in apps (lock files tracked per subdirectory)
+apps/**/.terraform/
+apps/**/.terraform.lock.hcl

@@ -29,3 +29,5 @@ node_group_disk_size      = 20
 # Bastion
 instance_type    = "t3.micro"
 instance_keypair = "kk-eks-lab-key"
+
+# ci-test: trigger staging pipeline

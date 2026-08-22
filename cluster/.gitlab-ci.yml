@@ -1,6 +1,7 @@
 # Deploy order: cluster → addons/lbc → addons/externaldns
 # Branches: main → prod | staging → staging
 # State keys: <env>/cluster/terraform.tfstate (injected via -backend-config at init)
+# Runner: vps-native-runner (tags: [docker]) — shell executor with Docker socket, uses docker run for terraform
 
 variables:
   TF_IMAGE: "hashicorp/terraform:1.9"
@@ -17,6 +18,7 @@ stages:
 
 .cluster_validate:
   stage: validate
+  tags: [docker]
   script:
     - docker run --rm --user "$(id -u):$(id -g)"
         -v "$REPO_HOST_DIR:/workspace" -w $CLUSTER_TF_WORKDIR
@@ -29,6 +31,7 @@ stages:
 
 .cluster_plan:
   stage: plan
+  tags: [docker]
   script:
     - docker run --rm --user "$(id -u):$(id -g)"
         -v "$REPO_HOST_DIR:/workspace" -w $CLUSTER_TF_WORKDIR
@@ -42,6 +45,7 @@ stages:
 
 .cluster_apply:
   stage: apply
+  tags: [docker]
   script:
     - docker run --rm --user "$(id -u):$(id -g)"
         -v "$REPO_HOST_DIR:/workspace" -w $CLUSTER_TF_WORKDIR
@@ -57,6 +61,7 @@ stages:
 
 .cluster_destroy:
   stage: destroy
+  tags: [docker]
   script:
     - docker run --rm --user "$(id -u):$(id -g)"
         -v "$REPO_HOST_DIR:/workspace" -w $CLUSTER_TF_WORKDIR
